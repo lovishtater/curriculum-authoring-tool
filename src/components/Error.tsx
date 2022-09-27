@@ -55,6 +55,9 @@ const styledComp = {
       p {
         color: gray;
       }
+      h1 {
+        color: #ff0000;
+      }
       .cancle {
         font-size: 1.5rem;
         color: gray;
