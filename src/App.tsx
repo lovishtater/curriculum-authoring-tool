@@ -1,51 +1,208 @@
-import React, { useState } from 'react';
-import './App.css';
-import CurriculumTable from './components/CurriculumTable/CurriculumTable';
-import Navigation from './components/Navigation/Navigation';
-// import mockData from './mockData/mockData.json';
+import React, { useEffect, useState } from "react";
+import styled from "styled-components";
+import { v4 as uuid } from "uuid";
+import { DndComponent } from "./components/TableRow";
+import { ErrorAlert } from "./components/Error";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTimesCircle as farTimesCircle } from "@fortawesome/free-regular-svg-icons";
+import JsonConverter from "./components/JsonConverter";
+import TableHeader from "./components/TableHeader";
+import "./App.css"
 
+export interface StandardListProps {
+  id: string;
+  value: string;
+  depth: number;
+}
 
-function App() {
-  // const [data, setData] = useState<any>(mockData);
+ const App = () => {
+  const [data, setData] = useState<StandardListProps[]>([{ id: uuid(), value: "", depth: 0 }]);
+  const [error, setError] = useState<boolean>(false);
+  const [errorValue, setErrorValue] = useState({
+    title: "",
+    message: "",
+  });
+  
+  const updateJsonData = (jsonData : StandardListProps[]) => {
+    setData([...jsonData]);
+  };
 
+  useEffect(() => {
+      const curriculam = localStorage.getItem("curriculam");
+      if (curriculam) {
+      setData(JSON.parse(curriculam));
+      }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("curriculam", JSON.stringify(data));
+  }, [data]);
+
+  const indentStandard = (index : number) => {
+    const StandardData = [...data];
+    if (index === 0) return;
+    if ( StandardData[index - 1].depth - StandardData[index].depth >= 0 && StandardData[index].depth < 2) {
+      StandardData[index].depth++;
+    }
+    setData(StandardData);
+  };
+
+  const outdentStandard = (index : number) => {
+    const StandardData = [...data];
+    if (index === StandardData.length - 1 && StandardData[index].depth > 0) {
+        StandardData[index].depth--;
+    } else {
+      if (
+        StandardData[index + 1].depth - StandardData[index].depth <= 1 &&
+        StandardData[index].depth > 0
+      ) {
+        StandardData[index].depth--;
+      }
+    }
+
+    setData(StandardData);
+  };
+
+  const onChange = (val : string , index : number) => {
+    const StandardData = [...data];
+    StandardData[index].value = val;
+    setData(StandardData);
+  };
+
+  // adding new standard
+  const addStandard = () => {
+    setData([...data, { id: uuid(), value: "", depth: 0 }]);
+  };
+
+  // deleting a standard
+  const deleteStandard = (id : string) => {
+    let val = -1;
+
+    data.forEach((item, index) => {
+      if (item.id === id) {
+        val = index;
+      }
+    });
+
+    console.log("val", val);
+    let newCurriculam = [...data];
+
+    if (val !== -1) {
+      let count = 1;
+      if (data[val].depth === 0) {
+        for (let i = val + 1; i < data.length; i++) {
+          if (data[i].depth === 0) {
+            break;
+          }
+          count++;
+        }
+      } else if (data[val].depth === 1) {
+        for (let i = val + 1; i < data.length; i++) {
+          if (data[i].depth === 1 || data[i].depth === 0) {
+            break;
+          }
+          count++;
+        }
+      }
+
+      newCurriculam.splice(val, count);
+      setData(newCurriculam);
+    }
+  };
+
+  // handling drag and drop
+  const handlednd = ({destinationIndex , sourceIndex} : {
+    destinationIndex: number;
+    sourceIndex: number;
+  }) => {
+    console.log(destinationIndex, sourceIndex);
+    let newCurriculam = [...data];
+    newCurriculam.splice(destinationIndex,0,newCurriculam.splice(sourceIndex, 1)[0]);
+    let isValid = true;
+    if (newCurriculam[0].depth !== 0) {
+      isValid = false;
+      setErrorValue({
+        title: "Invalid Drag",
+        message:
+          "indentend value cannot be assigned as chapter, make it a chapter to continue",
+      });
+    }
+    for (let i = 0; i < newCurriculam.length - 1; i++) {
+      if (newCurriculam[i].depth === 0) {
+        if (newCurriculam[i + 1].depth === 2) {
+          isValid = false;
+          setErrorValue({
+            title: "Invalid Drag",
+            message:
+              "cannot indent sub topic directly to chapter, first indentent it as a child",
+          });
+          break;
+        }
+      }
+    }
+    isValid ? setData(newCurriculam) : setError(true);
+  };
 
   return (
     <div className="App">
-      <Navigation />
-      <CurriculumTable>
-        <tr>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <div className="flex items-center">
-                <button className="text-sm font-medium mx-1 text-blue-600 hover:text-blue-900">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                </svg>
-                </button>
-              <button className="text-sm font-medium mx-1 text-blue-600 hover:text-blue-900">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
-              </svg>
-            </button>
-              <button className="text-sm font-medium mx-1 text-blue-600 hover:text-blue-900">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
-                </svg>
-                </button>
-              <button className="text-sm font-medium mx-1 text-blue-600 hover:text-blue-900">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                </svg>
-                </button>
-            </div>
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <div className="text-sm text-gray-900">{node.name}</div>  
-
-          </td>
-        </tr>
-      </CurriculumTable>
+    <styledComp.App>
+      <JsonConverter
+        data={data}
+        setError={setError}
+        setErrorValue={setErrorValue}
+        updateJsonData={updateJsonData}
+      />
+      <TableHeader />
+      <DndComponent
+        data={data}
+        handlednd={handlednd}
+        deleteStandard={deleteStandard}
+        indentStandard={indentStandard}
+        outdentStandard={outdentStandard}
+        onChange={onChange}
+      />
+      <div className="button" onClick={addStandard}>
+        <FontAwesomeIcon className="add" icon={farTimesCircle} /> Add a standard
+      </div>
+        {error && (
+          <ErrorAlert
+            title={errorValue.title}
+            message={errorValue.message}
+            setError={setError}
+          />
+        )}
+    </styledComp.App>
     </div>
   );
-}
+};
 
 export default App;
+
+const styledComp = {
+  App: styled.div`
+    margin-bottom: 2rem;
+    margin-right: 5vw;
+    margin-left: 5vw;
+    margin-top: 10vh;
+    .button {
+      background: #337ab7;
+      color: white;
+      padding: 0.5rem;
+      margin-top: 1.5rem;
+      border-radius: 6px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: 0.3s ease-in-out;
+      .add {
+        margin-right: 0.5rem;
+        font-size: 1.2rem;
+        transform: rotate(45deg);
+      }
+
+      :hover {
+        background: #285f8f;
+      }
+    }
+  `};
